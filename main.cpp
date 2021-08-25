@@ -6,6 +6,8 @@
 #include <SDL_opengl.h>
 #include <backends/imgui_impl_sdl.h>
 #include <backends/imgui_impl_opengl2.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 //Fonts and images (ImTextureID) must be loaded in other place,
 //see https://github.com/ocornut/imgui/blob/master/docs/FONTS.md
@@ -13,6 +15,41 @@ static ImFont *g_font_regular;
 static ImFont *g_font_bold;
 static ImFont *g_font_bold_large;
 static ImTextureID g_texture1;
+
+// Simple helper function to load an image into a OpenGL texture with common settings
+bool LoadTextureFromFile(const char* filename, GLuint* out_texture, int* out_width, int* out_height)
+{
+    // Load from file
+    int image_width = 0;
+    int image_height = 0;
+    unsigned char* image_data = stbi_load(filename, &image_width, &image_height, NULL, 4);
+    if (image_data == NULL)
+        return false;
+
+    // Create a OpenGL texture identifier
+    GLuint image_texture;
+    glGenTextures(1, &image_texture);
+    glBindTexture(GL_TEXTURE_2D, image_texture);
+
+    // Setup filtering parameters for display
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // This is required on WebGL for non power-of-two textures
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Same
+
+    // Upload pixels into texture
+    #if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    #endif
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_width, image_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
+    stbi_image_free(image_data);
+
+    *out_texture = image_texture;
+    *out_width = image_width;
+    *out_height = image_height;
+
+    return true;
+}
 
 struct my_markdown : public imgui_md {
     ImFont *get_font() const override {
@@ -35,10 +72,10 @@ struct my_markdown : public imgui_md {
         SDL_OpenURL(m_href.c_str());
     }
 
-    bool get_image(image_info &nfo) const override {
+    bool get_image(image_info &nfo, const MD_SPAN_IMG_DETAIL* d) const override {
         // use m_href to identify images
         nfo.texture_id = g_texture1;
-        nfo.size = {40, 20};
+        nfo.size = {864, 486};
         nfo.uv0 = {0, 0};
         nfo.uv1 = {1, 1};
         nfo.col_tint = {1, 1, 1, 1};
@@ -97,12 +134,20 @@ int main(int argc, const char *argv[]) {
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
     // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
+    ImGui::StyleColorsLight();
     //ImGui::StyleColorsClassic();
 
     // Setup Platform/Renderer backends
     ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL2_Init();
+
+    // load images
+    int my_image_width = 0;
+    int my_image_height = 0;
+    GLuint my_image_texture = 0;
+    bool ret = LoadTextureFromFile("images/hynh.jpeg", &my_image_texture, &my_image_width, &my_image_height);
+    IM_ASSERT(ret);
+    g_texture1 = reinterpret_cast<ImTextureID>(my_image_texture);
 
     // Load Fonts
     // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
@@ -119,9 +164,10 @@ int main(int argc, const char *argv[]) {
     //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
     //IM_ASSERT(font != NULL);
 //    io.Fonts->AddFontDefault();
-      g_font_bold_large = g_font_bold = g_font_regular = io.Fonts->AddFontFromFileTTF("fonts/wqy-MicroHei.ttf", 16.0f, NULL, io.Fonts->GetGlyphRangesChineseFull());
-//    g_font_bold = io.Fonts->AddFontFromFileTTF("fonts/Ubuntu-Bold.ttf", 16);
-//    g_font_bold_large = io.Fonts->AddFontFromFileTTF("fonts/Ubuntu-Bold.ttf", 26);
+    // default font here
+    g_font_bold_large = g_font_bold = g_font_regular = io.Fonts->AddFontFromFileTTF("fonts/wqy-MicroHei.ttf", 16.0f, NULL, io.Fonts->GetGlyphRangesChineseFull());
+//    g_font_bold = io.Fonts->AddFontFromFileTTF("fonts/Ubuntu-Bold.ttf", 16.0f);
+//    g_font_bold_large = io.Fonts->AddFontFromFileTTF("fonts/Ubuntu-Bold.ttf", 24.0f);
 
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
@@ -149,16 +195,38 @@ int main(int argc, const char *argv[]) {
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Begin("markdown example");
-        ImGui::Button(u8"按钮");
+        ImGui::Begin(u8"markdown 渲染器样例");
 
-//        std::string markdown_str = u8"# Table 中文标题希德\n\n"
-//                                   "abc here are you\n\n"
-//                          "Name &nbsp; &nbsp; &nbsp; &nbsp; | Multiline &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<br>header  | [Link&nbsp;](#link1)\n"
-//                          ":------|:-------------------|:--\n"
-//                          "Value-One | Long <br>explanation <br>with \\<br\\>\\'s|1\n"
-//                          "~~Value-Two~~ | __text auto wrapped__\\: long explanation here |25 37 43 56 78 90\n"
-//                          "**etc** | [~~Some **link**~~](https://github.com/faywong)|3";
+        std::string markdown_str = u8"# Sid's 表格\n\n"
+                          "Name &nbsp; &nbsp; &nbsp; &nbsp; | Multiline &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<br>header  | [Link&nbsp;](#link1)\n"
+                          ":------|:-------------------|:--\n"
+                          "Value-One | Long <br>explanation <br>with \\<br\\>\\'s|1\n"
+                          "~~Value-Two~~ | __text auto wrapped__\\: long explanation here |25 37 43 56 78 90\n"
+                          "**etc** | [~~Some **link**~~](https://github.com/faywong)|3\n"
+                          "\n"
+                          " - [x] Marked item\n"
+                          " - [ ] Unmarked item\n"
+                          " - Ordinary (non-task) item\n\n"
+                          u8"# 中文List\n"
+                         "\n"
+                         "1. First ordered list item\n"
+                         "2. Another item\n"
+                         "   * Unordered sub-list 1.\n"
+                         "   * Unordered sub-list 2.\n"
+                         "1. Actual numbers don't matter, just that it's a number\n"
+                         "   1. **Ordered** sub-list 1\n"
+                         "   2. **Ordered** sub-list 2\n"
+                         "4. And another item with minuses.\n"
+                         "   - __sub-list with underline__\n"
+                         "   - sub-list with escapes: \\[looks like\\]\\(a link\\)\n"
+                         "5. ~~Item with pluses and strikethrough~~.\n"
+                         "   + sub-list 1\n"
+                         "   + sub-list 2\n"
+                         "   + [Just a link](https://github.com/mekhontsev/imgui_md).\n"
+                         "      * Item with [link1](#link1)\n"
+                         "      * Item with bold [**link2**](#link1)\n"
+                                   "## 图片样例\n"
+                                   "![image](https://gimg2.baidu.com/image_search/src=http%3A%2F%2Fvsd-picture.cdn.bcebos.com%2F7c791bffb7e97059897391d24e34969603de76e3.jpg&refer=http%3A%2F%2Fvsd-picture.cdn.bcebos.com&app=2002&size=f9999,10000&q=a80&n=0&g=0n&fmt=jpeg?sec=1632473708&t=fd59bba5438dd17d217f0bd224a78e76)\n";
 
 //        std::string markdown_str = "<div class = \"red\">\n"
 //                                   "\n"
@@ -169,25 +237,24 @@ int main(int argc, const char *argv[]) {
 //                                   "\n"
 //                                   "</div>";
 
-        std::string markdown_str = ""
-                                   "# List\n"
-                                   "\n"
-                                   "1. First ordered list item\n"
-                                   "2. Another item\n"
-                                   "   * Unordered sub-list 1.\n"
-                                   "   * Unordered sub-list 2.\n"
-                                   "1. Actual numbers don't matter, just that it's a number\n"
-                                   "   1. **Ordered** sub-list 1\n"
-                                   "   2. **Ordered** sub-list 2\n"
-                                   "4. And another item with minuses.\n"
-                                   "   - __sub-list with underline__\n"
-                                   "   - sub-list with escapes: \\[looks like\\]\\(a link\\)\n"
-                                   "5. ~~Item with pluses and strikethrough~~.\n"
-                                   "   + sub-list 1\n"
-                                   "   + sub-list 2\n"
-                                   "   + [Just a link](https://github.com/mekhontsev/imgui_md).\n"
-                                   "      * Item with [link1](#link1)\n"
-                                   "      * Item with bold [**link2**](#link1)";
+//        std::string markdown_str = u8"# 中文List\n"
+//                                   "\n"
+//                                   "1. First ordered list item\n"
+//                                   "2. Another item\n"
+//                                   "   * Unordered sub-list 1.\n"
+//                                   "   * Unordered sub-list 2.\n"
+//                                   "1. Actual numbers don't matter, just that it's a number\n"
+//                                   "   1. **Ordered** sub-list 1\n"
+//                                   "   2. **Ordered** sub-list 2\n"
+//                                   "4. And another item with minuses.\n"
+//                                   "   - __sub-list with underline__\n"
+//                                   "   - sub-list with escapes: \\[looks like\\]\\(a link\\)\n"
+//                                   "5. ~~Item with pluses and strikethrough~~.\n"
+//                                   "   + sub-list 1\n"
+//                                   "   + sub-list 2\n"
+//                                   "   + [Just a link](https://github.com/mekhontsev/imgui_md).\n"
+//                                   "      * Item with [link1](#link1)\n"
+//                                   "      * Item with bold [**link2**](#link1)";
         markdown(markdown_str.c_str(), markdown_str.c_str() + markdown_str.size());
         ImGui::End();
 

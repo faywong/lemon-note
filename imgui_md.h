@@ -89,7 +89,7 @@ protected:
 	};
 
 	//use m_href to identify image
-	virtual bool get_image(image_info& nfo) const;
+	virtual bool get_image(image_info& nfo, const MD_SPAN_IMG_DETAIL* d) const;
 
 	virtual ImFont* get_font() const;
 	virtual ImVec4 get_color() const;

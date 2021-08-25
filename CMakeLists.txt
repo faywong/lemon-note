@@ -19,6 +19,25 @@ endif()
 
 include(${CPM_DOWNLOAD_LOCATION})
 
+
+#
+#
+# -----------------------------------------------------------------------------
+# CPM: stb
+# -----------------------------------------------------------------------------
+
+CPMAddPackage(
+    NAME stb
+    GITHUB_REPOSITORY nothings/stb
+    GIT_TAG 3a1174060a7dd4eb652d4e6854bc4cd98c159200
+    DOWNLOAD_ONLY YES
+)
+
+if (stb_ADDED)
+# stb has no CMake support, so we create our own target
+include_directories(${stb_SOURCE_DIR})
+endif()
+
 #
 #
 # -----------------------------------------------------------------------------
@@ -60,14 +79,14 @@ if (md4c_ADDED)
 
 #    FILE(GLOB md4c_sources ${md4c_SOURCE_DIR}/*.cpp)
 #    FILE(GLOB md4c_sources_cpp ${md4c_SOURCE_DIR}/misc/cpp/*.cpp)
-
+    add_definitions(-DMD4C_USE_UTF8)
     include_directories(${md4c_SOURCE_DIR}/src)
 #    set(MD4C_DIR ${md4c_SOURCE_DIR})
 #    set(MD4C_INCLUDE_DIR ${md4c_SOURCE_DIR})
 #    set(MD4C_SOURCES ${md4c_sources} ${md4c_sources_cpp})
 endif()
 
-add_executable(imgui_md
+add_executable(md_render
         imgui_md.cpp
         imgui_md.h
         main.cpp
@@ -76,9 +95,10 @@ add_executable(imgui_md
 find_package(SDL2 REQUIRED)
 find_package(OpenGL REQUIRED)
 
-target_include_directories(imgui_md SYSTEM PUBLIC ${SDL2_INCLUDE_DIRS}
+target_include_directories(md_render SYSTEM PUBLIC ${SDL2_INCLUDE_DIRS}
                                            PUBLIC ${IMGUI_INCLUDE_DIR}
                                            PUBLIC ${md4c_SOURCE_DIR}/src)
-target_link_libraries(imgui_md ${SDL2_LIBRARIES} md4c OpenGL::GL)
+target_link_libraries(md_render ${SDL2_LIBRARIES} md4c OpenGL::GL)
 
 file(COPY fonts DESTINATION ${CMAKE_BINARY_DIR})
+file(COPY images DESTINATION ${CMAKE_BINARY_DIR})

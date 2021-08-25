@@ -351,7 +351,7 @@ void imgui_md::SPAN_IMG(const MD_SPAN_IMG_DETAIL* d, bool e)
 	if (e) {
 
 		image_info nfo;
-		if (get_image(nfo)) {
+		if (get_image(nfo, d)) {
 
 			const float scale = ImGui::GetIO().FontGlobalScale;
 			nfo.size.x *= scale;
@@ -785,7 +785,7 @@ ImVec4 imgui_md::get_color() const
 }
 
 
-bool imgui_md::get_image(image_info& nfo) const
+bool imgui_md::get_image(image_info& nfo, const MD_SPAN_IMG_DETAIL* d) const
 {
 	//Use m_href to identify images
 	
