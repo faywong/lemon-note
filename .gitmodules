@@ -1,0 +1,6 @@
+[submodule "3rdparth/sdl2"]
+	path = 3rdparth/sdl2
+	url = https://github.com/SpookyScaryStudios/SDL2
+[submodule "3rdparty/sdl2"]
+	path = 3rdparty/sdl2
+	url = https://github.com/SpookyScaryStudios/SDL2
