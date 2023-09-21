@@ -47,7 +47,7 @@ endif()
 CPMAddPackage(
         NAME imgui
         GITHUB_REPOSITORY ocornut/imgui
-        GIT_TAG e3e1fbcf025cf83413815751f7c33500e1314d57
+        GIT_TAG v1.89.9
         DOWNLOAD_ONLY YES
 )
 
@@ -59,7 +59,9 @@ if (imgui_ADDED)
 
     set(IMGUI_DIR ${imgui_SOURCE_DIR})
     set(IMGUI_INCLUDE_DIR ${imgui_SOURCE_DIR})
-    set(IMGUI_SOURCES ${imgui_sources} ${imgui_sources_cpp} ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl2.cpp ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl.cpp)
+    set(IMGUI_SOURCES ${imgui_sources} ${imgui_sources_cpp} ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl2.cpp 
+            ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl2.cpp 
+            ${imgui_SOURCE_DIR}/backends/imgui_impl_sdlrenderer2.cpp)
 endif()
 
 #

@@ -152,6 +152,8 @@ Border | **is not** | visible
 
 <img src="https://user-images.githubusercontent.com/2968582/115060481-1b3ad400-9f12-11eb-87d7-4a1e0eb8ea93.png" width="464" />
 
+## TODO
+add edit support, ref: https://github.com/BalazsJako/ImGuiColorTextEdit
 
 ## Credits
 [imgui_markdown for ideas](https://github.com/juliettef/imgui_markdown)
@@ -159,4 +161,5 @@ Border | **is not** | visible
 [Martin Mitáš for MD4C](https://github.com/mity/md4c)
 
 [Omar Cornut for Dear ImGui](https://github.com/ocornut/imgui)  
+
 

@@ -4,7 +4,7 @@
 #include "imgui_md.h"
 #include <SDL.h>
 #include <SDL_opengl.h>
-#include <backends/imgui_impl_sdl.h>
+#include <backends/imgui_impl_sdl2.h>
 #include <backends/imgui_impl_opengl2.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
