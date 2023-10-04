@@ -1,4 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
+set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../vcpkg/scripts/buildsystems/vcpkg.cmake"
+  CACHE STRING "Vcpkg toolchain file")
 project(imgui_md)
 
 set(CMAKE_CXX_STANDARD 14)
@@ -18,7 +20,6 @@ if(NOT (EXISTS ${CPM_DOWNLOAD_LOCATION} AND CPM_VERSION STREQUAL CPM_DOWNLOAD_VE
 endif()
 
 include(${CPM_DOWNLOAD_LOCATION})
-
 
 #
 #
@@ -59,6 +60,7 @@ if (imgui_ADDED)
 
     set(IMGUI_DIR ${imgui_SOURCE_DIR})
     set(IMGUI_INCLUDE_DIR ${imgui_SOURCE_DIR})
+    include_directories(${imgui_SOURCE_DIR})
     set(IMGUI_SOURCES ${imgui_sources} ${imgui_sources_cpp} ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl2.cpp 
             ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl2.cpp 
             ${imgui_SOURCE_DIR}/backends/imgui_impl_sdlrenderer2.cpp)
@@ -88,18 +90,53 @@ if (md4c_ADDED)
 #    set(MD4C_SOURCES ${md4c_sources} ${md4c_sources_cpp})
 endif()
 
+#
+#
+# -----------------------------------------------------------------------------
+# CPM: BalazsJako/ImGuiColorTextEdit
+# -----------------------------------------------------------------------------
+
+CPMAddPackage(
+        NAME ImGuiColorTextEdit
+        GITHUB_REPOSITORY BalazsJako/ImGuiColorTextEdit
+        GIT_TAG 0a88824f7de8d0bd11d8419066caa7d3469395c4
+)
+
+if (ImGuiColorTextEdit_ADDED)
+    include_directories(${ImGuiColorTextEdit_SOURCE_DIR})
+endif()
+
+#
+#
+# -----------------------------------------------------------------------------
+# CPM: aiekick/ImGuiFileDialog
+# -----------------------------------------------------------------------------
+
+CPMAddPackage(
+        NAME ImGuiFileDialog
+        GITHUB_REPOSITORY aiekick/ImGuiFileDialog
+        GIT_TAG v0.6.5
+)
+
+if (ImGuiFileDialog_ADDED)
+    include_directories(${ImGuiFileDialog_SOURCE_DIR})
+endif()
+
+
 add_executable(md_render
         imgui_md.cpp
         imgui_md.h
+        ${ImGuiColorTextEdit_SOURCE_DIR}/TextEditor.cpp
+        ${ImGuiFileDialog_SOURCE_DIR}/ImGuiFileDialog.cpp
         main.cpp
         ${IMGUI_SOURCES})
 
 find_package(SDL2 REQUIRED)
 find_package(OpenGL REQUIRED)
 
-target_include_directories(md_render SYSTEM PUBLIC ${SDL2_INCLUDE_DIRS}
-                                           PUBLIC ${IMGUI_INCLUDE_DIR}
-                                           PUBLIC ${md4c_SOURCE_DIR}/src)
+include_directories(${SDL2_INCLUDE_DIRS}
+                    ${IMGUI_INCLUDE_DIR}
+                    ${md4c_SOURCE_DIR}/src)
 target_link_libraries(md_render ${SDL2_LIBRARIES} md4c OpenGL::GL)
 
 file(COPY fonts DESTINATION ${CMAKE_BINARY_DIR})

@@ -1,13 +1,20 @@
 //
 // Created by faywong on 2021/8/24.
 //
+#include <fstream>
+#include <streambuf>
+
 #include "imgui_md.h"
+
 #include <SDL.h>
 #include <SDL_opengl.h>
 #include <backends/imgui_impl_sdl2.h>
 #include <backends/imgui_impl_opengl2.h>
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#include <ImGuiFileDialog.h>
+#include <TextEditor.h>
 
 //Fonts and images (ImTextureID) must be loaded in other place,
 //see https://github.com/ocornut/imgui/blob/master/docs/FONTS.md
@@ -103,6 +110,39 @@ void markdown(const char *str, const char *str_end) {
     s_printer.print(str, str_end);
 }
 
+void DrawSplitter(int split_vertically, float thickness, float* size0, float* size1, float min_size0, float min_size1)
+{
+    ImVec2 backup_pos = ImGui::GetCursorPos();
+    if (split_vertically)
+        ImGui::SetCursorPosY(backup_pos.y + *size0);
+    else
+        ImGui::SetCursorPosX(backup_pos.x + *size0);
+
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0,0,0,0));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0,0,0,0));          // We don't draw while active/pressed because as we move the panes the splitter button will be 1 frame late
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.6f,0.6f,0.6f,0.10f));
+    ImGui::Button("##Splitter", ImVec2(!split_vertically ? thickness : -1.0f, split_vertically ? thickness : -1.0f));
+    ImGui::PopStyleColor(3);
+
+    ImGui::SetItemAllowOverlap(); // This is to allow having other buttons OVER our splitter. 
+
+    if (ImGui::IsItemActive())
+    {
+        float mouse_delta = split_vertically ? ImGui::GetIO().MouseDelta.y : ImGui::GetIO().MouseDelta.x;
+
+        // Minimum pane size
+        if (mouse_delta < min_size0 - *size0)
+            mouse_delta = min_size0 - *size0;
+        if (mouse_delta > *size1 - min_size1)
+            mouse_delta = *size1 - min_size1;
+
+        // Apply resize
+        *size0 += mouse_delta;
+        *size1 -= mouse_delta;
+    }
+    ImGui::SetCursorPos(backup_pos);
+}
+
 int main(int argc, const char *argv[]) {
 
     // Setup SDL
@@ -121,7 +161,7 @@ int main(int argc, const char *argv[]) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
-    SDL_Window* window = SDL_CreateWindow("Rendering example", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
+    SDL_Window* window = SDL_CreateWindow("柠檬笔记", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
     SDL_GL_MakeCurrent(window, gl_context);
     SDL_GL_SetSwapInterval(1); // Enable vsync
@@ -162,14 +202,75 @@ int main(int argc, const char *argv[]) {
     //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
     //io.Fonts->AddFontFromFileTTF("../../misc/fonts/ProggyTiny.ttf", 10.0f);
     //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
-    //IM_ASSERT(font != NULL);
-//    io.Fonts->AddFontDefault();
     // default font here
-    g_font_bold_large = g_font_bold = g_font_regular = io.Fonts->AddFontFromFileTTF("fonts/wqy-MicroHei.ttf", 16.0f, NULL, io.Fonts->GetGlyphRangesChineseFull());
-//    g_font_bold = io.Fonts->AddFontFromFileTTF("fonts/Ubuntu-Bold.ttf", 16.0f);
-//    g_font_bold_large = io.Fonts->AddFontFromFileTTF("fonts/Ubuntu-Bold.ttf", 24.0f);
-
+    g_font_regular = io.Fonts->AddFontFromFileTTF("fonts/wqy-MicroHei.ttf", 16.0f, NULL, io.Fonts->GetGlyphRangesChineseFull());
+    IM_ASSERT(g_font_regular != NULL);
+    g_font_bold = io.Fonts->AddFontFromFileTTF("fonts/wqy-MicroHei.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesChineseFull());
+    IM_ASSERT(g_font_bold != NULL);
+    g_font_bold_large = io.Fonts->AddFontFromFileTTF("fonts/wqy-MicroHei.ttf", 20.0f, NULL, io.Fonts->GetGlyphRangesChineseFull());
+    IM_ASSERT(g_font_bold_large != NULL);
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+///////////////////////////////////////////////////////////////////////
+	// TEXT EDITOR SAMPLE
+	TextEditor editor;
+	auto lang = TextEditor::LanguageDefinition::CPlusPlus();
+
+	// set your own known preprocessor symbols...
+	static const char* ppnames[] = { "NULL", "PM_REMOVE",
+		"ZeroMemory", "DXGI_SWAP_EFFECT_DISCARD", "D3D_FEATURE_LEVEL", "D3D_DRIVER_TYPE_HARDWARE", "WINAPI","D3D11_SDK_VERSION", "assert" };
+	// ... and their corresponding values
+	static const char* ppvalues[] = { 
+		"#define NULL ((void*)0)", 
+		"#define PM_REMOVE (0x0001)",
+		"Microsoft's own memory zapper function\n(which is a macro actually)\nvoid ZeroMemory(\n\t[in] PVOID  Destination,\n\t[in] SIZE_T Length\n); ", 
+		"enum DXGI_SWAP_EFFECT::DXGI_SWAP_EFFECT_DISCARD = 0", 
+		"enum D3D_FEATURE_LEVEL", 
+		"enum D3D_DRIVER_TYPE::D3D_DRIVER_TYPE_HARDWARE  = ( D3D_DRIVER_TYPE_UNKNOWN + 1 )",
+		"#define WINAPI __stdcall",
+		"#define D3D11_SDK_VERSION (7)",
+		" #define assert(expression) (void)(                                                  \n"
+        "    (!!(expression)) ||                                                              \n"
+        "    (_wassert(_CRT_WIDE(#expression), _CRT_WIDE(__FILE__), (unsigned)(__LINE__)), 0) \n"
+        " )"
+		};
+
+	for (int i = 0; i < sizeof(ppnames) / sizeof(ppnames[0]); ++i)
+	{
+		TextEditor::Identifier id;
+		id.mDeclaration = ppvalues[i];
+		lang.mPreprocIdentifiers.insert(std::make_pair(std::string(ppnames[i]), id));
+	}
+
+	// set your own identifiers
+	static const char* identifiers[] = {
+		"HWND", "HRESULT", "LPRESULT","D3D11_RENDER_TARGET_VIEW_DESC", "DXGI_SWAP_CHAIN_DESC","MSG","LRESULT","WPARAM", "LPARAM","UINT","LPVOID",
+		"ID3D11Device", "ID3D11DeviceContext", "ID3D11Buffer", "ID3D11Buffer", "ID3D10Blob", "ID3D11VertexShader", "ID3D11InputLayout", "ID3D11Buffer",
+		"ID3D10Blob", "ID3D11PixelShader", "ID3D11SamplerState", "ID3D11ShaderResourceView", "ID3D11RasterizerState", "ID3D11BlendState", "ID3D11DepthStencilState",
+		"IDXGISwapChain", "ID3D11RenderTargetView", "ID3D11Texture2D", "TextEditor" };
+	static const char* idecls[] = 
+	{
+		"typedef HWND_* HWND", "typedef long HRESULT", "typedef long* LPRESULT", "struct D3D11_RENDER_TARGET_VIEW_DESC", "struct DXGI_SWAP_CHAIN_DESC",
+		"typedef tagMSG MSG\n * Message structure","typedef LONG_PTR LRESULT","WPARAM", "LPARAM","UINT","LPVOID",
+		"ID3D11Device", "ID3D11DeviceContext", "ID3D11Buffer", "ID3D11Buffer", "ID3D10Blob", "ID3D11VertexShader", "ID3D11InputLayout", "ID3D11Buffer",
+		"ID3D10Blob", "ID3D11PixelShader", "ID3D11SamplerState", "ID3D11ShaderResourceView", "ID3D11RasterizerState", "ID3D11BlendState", "ID3D11DepthStencilState",
+		"IDXGISwapChain", "ID3D11RenderTargetView", "ID3D11Texture2D", "class TextEditor" };
+	for (int i = 0; i < sizeof(identifiers) / sizeof(identifiers[0]); ++i)
+	{
+		TextEditor::Identifier id;
+		id.mDeclaration = std::string(idecls[i]);
+		lang.mIdentifiers.insert(std::make_pair(std::string(identifiers[i]), id));
+	}
+	editor.SetLanguageDefinition(lang);
+	editor.SetPalette(TextEditor::GetLightPalette());
+
+	// error markers
+	// TextEditor::ErrorMarkers markers;
+	// markers.insert(std::make_pair<int, std::string>(6, "Example error here:\nInclude file not found: \"TextEditor.h\""));
+	// markers.insert(std::make_pair<int, std::string>(41, "Another example error"));
+	// editor.SetErrorMarkers(markers);
+
+	static std::string fileToEdit = "";
 
     // Main loop
     bool done = false;
@@ -195,67 +296,112 @@ int main(int argc, const char *argv[]) {
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Begin(u8"markdown 渲染器样例");
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        ImGui::Begin(u8"Lemon Notes", nullptr, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_MenuBar);
+        ImGui::PopStyleVar();
 
-        std::string markdown_str = u8"# Sid's 表格\n\n"
-                          "Name &nbsp; &nbsp; &nbsp; &nbsp; | Multiline &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<br>header  | [Link&nbsp;](#link1)\n"
-                          ":------|:-------------------|:--\n"
-                          "Value-One | Long <br>explanation <br>with \\<br\\>\\'s|1\n"
-                          "~~Value-Two~~ | __text auto wrapped__\\: long explanation here |25 37 43 56 78 90\n"
-                          "**etc** | [~~Some **link**~~](https://github.com/faywong)|3\n"
-                          "\n"
-                          " - [x] Marked item\n"
-                          " - [ ] Unmarked item\n"
-                          " - Ordinary (non-task) item\n\n"
-                          u8"# 中文List\n"
-                         "\n"
-                         "1. First ordered list item\n"
-                         "2. Another item\n"
-                         "   * Unordered sub-list 1.\n"
-                         "   * Unordered sub-list 2.\n"
-                         "1. Actual numbers don't matter, just that it's a number\n"
-                         "   1. **Ordered** sub-list 1\n"
-                         "   2. **Ordered** sub-list 2\n"
-                         "4. And another item with minuses.\n"
-                         "   - __sub-list with underline__\n"
-                         "   - sub-list with escapes: \\[looks like\\]\\(a link\\)\n"
-                         "5. ~~Item with pluses and strikethrough~~.\n"
-                         "   + sub-list 1\n"
-                         "   + sub-list 2\n"
-                         "   + [Just a link](https://github.com/mekhontsev/imgui_md).\n"
-                         "      * Item with [link1](#link1)\n"
-                         "      * Item with bold [**link2**](#link1)\n"
-                                   "## 图片样例\n"
-                                   "![image](https://gimg2.baidu.com/image_search/src=http%3A%2F%2Fvsd-picture.cdn.bcebos.com%2F7c791bffb7e97059897391d24e34969603de76e3.jpg&refer=http%3A%2F%2Fvsd-picture.cdn.bcebos.com&app=2002&size=f9999,10000&q=a80&n=0&g=0n&fmt=jpeg?sec=1632473708&t=fd59bba5438dd17d217f0bd224a78e76)\n";
+		if (ImGui::BeginMenuBar())
+		{
+			if (ImGui::BeginMenu("File"))
+			{
+				if (ImGui::MenuItem("Save"))
+				{
+					auto textToSave = editor.GetText();
+                    std::ofstream out(fileToEdit);
+                    out << textToSave;
+                    out.close();
+				} else if (ImGui::MenuItem("Open")) {
+                    ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".md,.cpp,.h,.hpp", 
+                            "."/*, 1, nullptr, ImGuiFileDialogFlags_Modal*/);
+				}
+				if (ImGui::MenuItem("Quit", "Alt-F4"))
+					break;
+				ImGui::EndMenu();
+			}
+			if (ImGui::BeginMenu("Edit"))
+			{
+				bool ro = editor.IsReadOnly();
+				if (ImGui::MenuItem("Read-only mode", nullptr, &ro))
+					editor.SetReadOnly(ro);
+				ImGui::Separator();
 
-//        std::string markdown_str = "<div class = \"red\">\n"
-//                                   "\n"
-//                                   "This table | is inside an | HTML div\n"
-//                                   "--- | --- | ---\n"
-//                                   "Still | ~~renders~~ | __nicely__\n"
-//                                   "Border | **is not** | visible\n"
-//                                   "\n"
-//                                   "</div>";
+				if (ImGui::MenuItem("Undo", "ALT-Backspace", nullptr, !ro && editor.CanUndo()))
+					editor.Undo();
+				if (ImGui::MenuItem("Redo", "Ctrl-Y", nullptr, !ro && editor.CanRedo()))
+					editor.Redo();
 
-//        std::string markdown_str = u8"# 中文List\n"
-//                                   "\n"
-//                                   "1. First ordered list item\n"
-//                                   "2. Another item\n"
-//                                   "   * Unordered sub-list 1.\n"
-//                                   "   * Unordered sub-list 2.\n"
-//                                   "1. Actual numbers don't matter, just that it's a number\n"
-//                                   "   1. **Ordered** sub-list 1\n"
-//                                   "   2. **Ordered** sub-list 2\n"
-//                                   "4. And another item with minuses.\n"
-//                                   "   - __sub-list with underline__\n"
-//                                   "   - sub-list with escapes: \\[looks like\\]\\(a link\\)\n"
-//                                   "5. ~~Item with pluses and strikethrough~~.\n"
-//                                   "   + sub-list 1\n"
-//                                   "   + sub-list 2\n"
-//                                   "   + [Just a link](https://github.com/mekhontsev/imgui_md).\n"
-//                                   "      * Item with [link1](#link1)\n"
-//                                   "      * Item with bold [**link2**](#link1)";
-        markdown(markdown_str.c_str(), markdown_str.c_str() + markdown_str.size());
+				ImGui::Separator();
+
+				if (ImGui::MenuItem("Copy", "Ctrl-C", nullptr, editor.HasSelection()))
+					editor.Copy();
+				if (ImGui::MenuItem("Cut", "Ctrl-X", nullptr, !ro && editor.HasSelection()))
+					editor.Cut();
+				if (ImGui::MenuItem("Delete", "Del", nullptr, !ro && editor.HasSelection()))
+					editor.Delete();
+				if (ImGui::MenuItem("Paste", "Ctrl-V", nullptr, !ro && ImGui::GetClipboardText() != nullptr))
+					editor.Paste();
+
+				ImGui::Separator();
+
+				if (ImGui::MenuItem("Select all", nullptr, nullptr))
+					editor.SetSelection(TextEditor::Coordinates(), TextEditor::Coordinates(editor.GetTotalLines(), 0));
+
+				ImGui::EndMenu();
+			}
+
+			if (ImGui::BeginMenu("View"))
+			{
+				if (ImGui::MenuItem("Dark palette"))
+					editor.SetPalette(TextEditor::GetDarkPalette());
+				if (ImGui::MenuItem("Light palette"))
+					editor.SetPalette(TextEditor::GetLightPalette());
+				if (ImGui::MenuItem("Retro blue palette"))
+					editor.SetPalette(TextEditor::GetRetroBluePalette());
+				ImGui::EndMenu();
+			}
+			ImGui::EndMenuBar();
+		}
+
+        // display file dialog
+        if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) 
+        {
+            // action if OK
+            if (ImGuiFileDialog::Instance()->IsOk())
+            {
+                fileToEdit = ImGuiFileDialog::Instance()->GetFilePathName();
+                // action
+                std::ifstream t(fileToEdit);
+                if (t.good())
+                {
+                    std::string str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
+                    editor.SetText(str);
+                }
+            }
+            // close
+            ImGuiFileDialog::Instance()->Close();
+        }
+
+        float h = 1200;
+        static float sz1 = 600;
+        static float sz2 = 800;
+        DrawSplitter(false, 8.0f, &sz1, &sz2, 8, 8);
+        ImGui::BeginChild("Editor", ImVec2(sz1, h), true);
+        auto cpos = editor.GetCursorPosition();
+		ImGui::Text("%6d/%-6d %6d lines  | %s | %s | %s | %s", cpos.mLine + 1, cpos.mColumn + 1, editor.GetTotalLines(),
+			editor.IsOverwrite() ? "Ovr" : "Ins",
+			editor.CanUndo() ? "*" : " ",
+			"Markdown", fileToEdit.c_str());
+
+		editor.Render("Editor");
+        ImGui::EndChild();
+
+        ImGui::SameLine();
+
+        ImGui::BeginChild("Previwer", ImVec2(sz2, h), true); // pass width here
+        std::string editor_content = editor.GetText();
+        markdown(editor_content.c_str(), editor_content.c_str() + editor_content.size());
+        ImGui::EndChild();
+
         ImGui::End();
 
         // Rendering
