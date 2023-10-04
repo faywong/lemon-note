@@ -76,18 +76,12 @@ CPMAddPackage(
         NAME md4c
         GITHUB_REPOSITORY mity/md4c
         GIT_TAG c3340b480e5232711858108be07460a9836c8ab5
+        OPTIONS
+#         "MD4C_USE_UTF8"
 )
 
 if (md4c_ADDED)
-    # imgui has no CMake support, so we create our own target
-
-#    FILE(GLOB md4c_sources ${md4c_SOURCE_DIR}/*.cpp)
-#    FILE(GLOB md4c_sources_cpp ${md4c_SOURCE_DIR}/misc/cpp/*.cpp)
-    add_definitions(-DMD4C_USE_UTF8)
     include_directories(${md4c_SOURCE_DIR}/src)
-#    set(MD4C_DIR ${md4c_SOURCE_DIR})
-#    set(MD4C_INCLUDE_DIR ${md4c_SOURCE_DIR})
-#    set(MD4C_SOURCES ${md4c_sources} ${md4c_sources_cpp})
 endif()
 
 #
@@ -122,6 +116,24 @@ if (ImGuiFileDialog_ADDED)
     include_directories(${ImGuiFileDialog_SOURCE_DIR})
 endif()
 
+#
+#
+# -----------------------------------------------------------------------------
+# CPM: pthom/hello_imgui
+# -----------------------------------------------------------------------------
+# CPMAddPackage(
+#         NAME hello_imgui
+#         GITHUB_REPOSITORY pthom/hello_imgui
+#         GIT_TAG 0.8.0
+#         OPTIONS
+#         "HELLOIMGUI_USE_SDL_OPENGL3 ON"
+# )
+
+# if (hello_imgui_ADDED)
+#     include_directories(${hello_imgui_SOURCE_DIR})
+#     list(APPEND CMAKE_MODULE_PATH ${hello_imgui_SOURCE_DIR}/hello_imgui_cmake)
+#     include(hello_imgui_add_app)
+# endif()
 
 add_executable(md_render
         imgui_md.cpp
@@ -137,7 +149,8 @@ find_package(OpenGL REQUIRED)
 include_directories(${SDL2_INCLUDE_DIRS}
                     ${IMGUI_INCLUDE_DIR}
                     ${md4c_SOURCE_DIR}/src)
-target_link_libraries(md_render ${SDL2_LIBRARIES} md4c OpenGL::GL)
+
+target_link_libraries(md_render PRIVATE ${SDL2_LIBRARIES} md4c OpenGL::GL)
 
 file(COPY fonts DESTINATION ${CMAKE_BINARY_DIR})
 file(COPY images DESTINATION ${CMAKE_BINARY_DIR})

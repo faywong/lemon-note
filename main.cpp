@@ -296,9 +296,24 @@ int main(int argc, const char *argv[]) {
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-        ImGui::Begin(u8"Lemon Notes", nullptr, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_MenuBar);
-        ImGui::PopStyleVar();
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->Pos);
+
+        ImVec2 viewportSize = viewport->Size;
+        ImGui::SetNextWindowSize(viewportSize);
+        // ImGui::SetNextWindowViewport(viewport->ID);
+
+        ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar;
+        window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+                        ImGuiWindowFlags_NoMove;
+        window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        static bool p_open = true;
+        ImGui::Begin(u8"Lemon Notes", &p_open, window_flags);
+        ImGui::PopStyleVar(3);
 
 		if (ImGui::BeginMenuBar())
 		{

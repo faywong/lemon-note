@@ -154,7 +154,7 @@ Border | **is not** | visible
 
 ## Screenshot
 
-![](https://imgur.com/3A9rJqf.png)
+![](https://imgur.com/mCfjaQB.png)
 
 
 ## Credits
