@@ -250,8 +250,8 @@ void UpdateEditorContent(TextEditor &editor, AppState &state) {
 
 void DrawFsTree(TextEditor &editor, AppState &appState) {
     std::string directoryPath = appState.folderToView;
-	if (ImGui::CollapsingHeader("Folder", ImGuiTreeNodeFlags_DefaultOpen))
-	{	
+	if (ImGui::TreeNodeEx("Folder", ImGuiTreeNodeFlags_DefaultOpen))
+	{
 		uint32_t count = 0;
 		for (const auto& entry : fs::recursive_directory_iterator(directoryPath))
 			count++;
@@ -273,6 +273,7 @@ void DrawFsTree(TextEditor &editor, AppState &appState) {
 			else //if (!(selection_mask & (1 << clickState.second))) // Depending on selection behavior you want, may want to preserve selection when clicking on item that is part of the selection
 				selection_mask = BIT(std::get<1>(clickState));           // Click to single-select
 		}
+        ImGui::TreePop();
 	}
 }
 
