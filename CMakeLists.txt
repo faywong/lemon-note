@@ -135,6 +135,23 @@ endif()
 #     include(hello_imgui_add_app)
 # endif()
 
+#
+#
+# -----------------------------------------------------------------------------
+# CPM: gulrak/filesystem
+# -----------------------------------------------------------------------------
+CPMAddPackage(
+        NAME ghc_fs
+        GITHUB_REPOSITORY gulrak/filesystem
+        GIT_TAG v1.5.14
+        OPTIONS
+        "HELLOIMGUI_USE_SDL_OPENGL3 ON"
+)
+
+if (ghc_fs_ADDED)
+    include_directories(${ghc_fs_SOURCE_DIR}/include)
+endif()
+
 add_executable(md_render
         imgui_md.cpp
         imgui_md.h

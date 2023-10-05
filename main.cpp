@@ -3,6 +3,7 @@
 //
 #include <fstream>
 #include <streambuf>
+#include <iostream>
 
 #include "imgui_md.h"
 
@@ -15,6 +16,24 @@
 #include "stb_image.h"
 #include <ImGuiFileDialog.h>
 #include <TextEditor.h>
+
+// fs
+#ifdef __APPLE__
+#include <Availability.h> // for deployment target to support pre-catalina targets without std::fs 
+#endif
+#if ((defined(_MSVC_LANG) && _MSVC_LANG >= 201703L) || (defined(__cplusplus) && __cplusplus >= 201703L)) && defined(__has_include)
+#if __has_include(<filesystem>) && (!defined(__MAC_OS_X_VERSION_MIN_REQUIRED) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 101500)
+#define GHC_USE_STD_FS
+#include <filesystem>
+namespace fs = fs::filesystem;
+#endif
+#endif
+#ifndef GHC_USE_STD_FS
+#include <ghc/filesystem.hpp>
+namespace fs = ghc::filesystem;
+#endif
+
+#define BIT(x) (1 << x)
 
 //Fonts and images (ImTextureID) must be loaded in other place,
 //see https://github.com/ocornut/imgui/blob/master/docs/FONTS.md
@@ -143,6 +162,106 @@ void DrawSplitter(int split_vertically, float thickness, float* size0, float* si
     ImGui::SetCursorPos(backup_pos);
 }
 
+std::tuple<bool, uint32_t, std::string> DirectoryTreeViewRecursive(const fs::path& path, uint32_t* count, int* selection_mask)
+{
+	ImGuiTreeNodeFlags base_flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_SpanFullWidth;
+
+	bool any_node_clicked = false;
+	uint32_t node_clicked = 0;
+    std::string selectedFile = "";
+
+	for (const auto& entry : fs::directory_iterator(path))
+	{
+		ImGuiTreeNodeFlags node_flags = base_flags;
+		const bool is_selected = (*selection_mask & BIT(*count)) != 0;
+		if (is_selected)
+			node_flags |= ImGuiTreeNodeFlags_Selected;
+
+		std::string name = entry.path().string();
+
+		auto lastSlash = name.find_last_of("/\\");
+		lastSlash = lastSlash == std::string::npos ? 0 : lastSlash + 1;
+		name = name.substr(lastSlash, name.size() - lastSlash);
+
+		bool entryIsFile = !fs::is_directory(entry.path());
+		if (entryIsFile)
+			node_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+
+		bool node_open = ImGui::TreeNodeEx((void*)(intptr_t)(*count), node_flags, name.c_str());
+
+		if (ImGui::IsItemClicked())
+		{
+			node_clicked = *count;
+			any_node_clicked = true;
+            std::cout<<"any_node_clicked： "<< any_node_clicked<<std::endl;
+            if (entryIsFile) {
+                selectedFile = name;
+            }
+		}
+
+		(*count)--;
+
+		if (!entryIsFile)
+		{
+			if (node_open)
+			{
+
+				auto clickState = DirectoryTreeViewRecursive(entry.path(), count, selection_mask);
+
+				if (!any_node_clicked)
+				{
+					any_node_clicked = std::get<0>(clickState);
+					node_clicked = std::get<1>(clickState);
+				}
+
+				ImGui::TreePop();
+			}
+			else
+			{
+				for (const auto& e : fs::recursive_directory_iterator(entry.path()))
+					(*count)--;
+			}
+		}
+	}
+
+	return { any_node_clicked, node_clicked, selectedFile};
+}
+
+void DrawFsTree(std::string directoryPath)
+{
+	if (ImGui::CollapsingHeader("Folder", ImGuiTreeNodeFlags_DefaultOpen))
+	{	
+		uint32_t count = 0;
+		for (const auto& entry : fs::recursive_directory_iterator(directoryPath))
+			count++;
+
+		static int selection_mask = 0;
+
+		auto clickState = DirectoryTreeViewRecursive(directoryPath, &count, &selection_mask);
+
+		if (std::get<0>(clickState))
+		{
+            std::cout<<"selected file: " << std::get<2>(clickState) <<std::endl;
+			// Update selection state
+			// (process outside of tree loop to avoid visual inconsistencies during the clicking frame)
+			if (ImGui::GetIO().KeyCtrl)
+				selection_mask ^= BIT(std::get<1>(clickState));          // CTRL+click to toggle
+			else //if (!(selection_mask & (1 << clickState.second))) // Depending on selection behavior you want, may want to preserve selection when clicking on item that is part of the selection
+				selection_mask = BIT(std::get<1>(clickState));           // Click to single-select
+            
+		}
+	}
+}
+
+struct AppState {
+    std::string fileToEdit;
+    std::string folderToView;
+
+    AppState(): fileToEdit(""), folderToView("") {
+
+    }
+};
+
 int main(int argc, const char *argv[]) {
 
     // Setup SDL
@@ -270,7 +389,7 @@ int main(int argc, const char *argv[]) {
 	// markers.insert(std::make_pair<int, std::string>(41, "Another example error"));
 	// editor.SetErrorMarkers(markers);
 
-	static std::string fileToEdit = "";
+	static AppState state;
 
     // Main loop
     bool done = false;
@@ -322,12 +441,14 @@ int main(int argc, const char *argv[]) {
 				if (ImGui::MenuItem("Save"))
 				{
 					auto textToSave = editor.GetText();
-                    std::ofstream out(fileToEdit);
+                    std::ofstream out(state.fileToEdit);
                     out << textToSave;
                     out.close();
-				} else if (ImGui::MenuItem("Open")) {
+				} else if (ImGui::MenuItem("Open File")) {
                     ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".md,.cpp,.h,.hpp", 
-                            "."/*, 1, nullptr, ImGuiFileDialogFlags_Modal*/);
+                            ".");
+				} else if (ImGui::MenuItem("Open Folder")) {
+                    ImGuiFileDialog::Instance()->OpenDialog("ChooseDirDlgKey", "Choose a Directory", nullptr, ".");
 				}
 				if (ImGui::MenuItem("Quit", "Alt-F4"))
 					break;
@@ -383,9 +504,9 @@ int main(int argc, const char *argv[]) {
             // action if OK
             if (ImGuiFileDialog::Instance()->IsOk())
             {
-                fileToEdit = ImGuiFileDialog::Instance()->GetFilePathName();
+                state.fileToEdit = ImGuiFileDialog::Instance()->GetFilePathName();
                 // action
-                std::ifstream t(fileToEdit);
+                std::ifstream t(state.fileToEdit);
                 if (t.good())
                 {
                     std::string str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
@@ -396,22 +517,43 @@ int main(int argc, const char *argv[]) {
             ImGuiFileDialog::Instance()->Close();
         }
 
-        float h = 1200;
-        static float sz1 = 600;
-        static float sz2 = 800;
-        DrawSplitter(false, 8.0f, &sz1, &sz2, 8, 8);
+        // display folder dialog
+        if (ImGuiFileDialog::Instance()->Display("ChooseDirDlgKey")) 
+        {
+            // action if OK
+            if (ImGuiFileDialog::Instance()->IsOk())
+            {
+                state.folderToView = ImGuiFileDialog::Instance()->GetFilePathName();
+            }
+            // close
+            ImGuiFileDialog::Instance()->Close();
+        }
+
+        float h = viewportSize.y;
+        auto thickness = 8.0f;
+        float sz1 = (viewportSize.x - 2 * thickness)/3;
+        float sz2 = sz1;
+        DrawSplitter(false, thickness, &sz1, &sz2, 8, 8);
+
+        // display fs tree
+        ImGui::BeginChild("FsTree", ImVec2(sz1, h), true);
+        DrawFsTree(state.folderToView);
+        ImGui::EndChild();
+        ImGui::SameLine();
+
+        // display editor
         ImGui::BeginChild("Editor", ImVec2(sz1, h), true);
         auto cpos = editor.GetCursorPosition();
 		ImGui::Text("%6d/%-6d %6d lines  | %s | %s | %s | %s", cpos.mLine + 1, cpos.mColumn + 1, editor.GetTotalLines(),
 			editor.IsOverwrite() ? "Ovr" : "Ins",
 			editor.CanUndo() ? "*" : " ",
-			"Markdown", fileToEdit.c_str());
-
+			"Markdown", state.fileToEdit.c_str());
 		editor.Render("Editor");
         ImGui::EndChild();
 
         ImGui::SameLine();
 
+        // display previewer
         ImGui::BeginChild("Previwer", ImVec2(sz2, h), true); // pass width here
         std::string editor_content = editor.GetText();
         markdown(editor_content.c_str(), editor_content.c_str() + editor_content.size());
