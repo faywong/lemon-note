@@ -35,6 +35,15 @@ namespace fs = ghc::filesystem;
 
 #define BIT(x) (1 << x)
 
+struct AppState {
+    std::string fileToEdit;
+    std::string folderToView;
+
+    AppState(): fileToEdit(""), folderToView("") {
+
+    }
+};
+
 //Fonts and images (ImTextureID) must be loaded in other place,
 //see https://github.com/ocornut/imgui/blob/master/docs/FONTS.md
 static ImFont *g_font_regular;
@@ -168,7 +177,7 @@ std::tuple<bool, uint32_t, std::string> DirectoryTreeViewRecursive(const fs::pat
 
 	bool any_node_clicked = false;
 	uint32_t node_clicked = 0;
-    std::string selectedFile = "";
+    std::string selected_file = "";
 
 	for (const auto& entry : fs::directory_iterator(path))
 	{
@@ -177,6 +186,7 @@ std::tuple<bool, uint32_t, std::string> DirectoryTreeViewRecursive(const fs::pat
 		if (is_selected)
 			node_flags |= ImGuiTreeNodeFlags_Selected;
 
+		std::string absolute_path = entry.path().lexically_normal();
 		std::string name = entry.path().string();
 
 		auto lastSlash = name.find_last_of("/\\");
@@ -193,9 +203,9 @@ std::tuple<bool, uint32_t, std::string> DirectoryTreeViewRecursive(const fs::pat
 		{
 			node_clicked = *count;
 			any_node_clicked = true;
-            std::cout<<"any_node_clicked： "<< any_node_clicked<<std::endl;
+            std::cout<<"any_node_clicked： "<< any_node_clicked << " absolute_path: " << absolute_path << " entryIsFile: " << entryIsFile <<std::endl;
             if (entryIsFile) {
-                selectedFile = name;
+                selected_file = absolute_path;
             }
 		}
 
@@ -212,6 +222,7 @@ std::tuple<bool, uint32_t, std::string> DirectoryTreeViewRecursive(const fs::pat
 				{
 					any_node_clicked = std::get<0>(clickState);
 					node_clicked = std::get<1>(clickState);
+                    selected_file = std::get<2>(clickState);
 				}
 
 				ImGui::TreePop();
@@ -224,11 +235,21 @@ std::tuple<bool, uint32_t, std::string> DirectoryTreeViewRecursive(const fs::pat
 		}
 	}
 
-	return { any_node_clicked, node_clicked, selectedFile};
+	return { any_node_clicked, node_clicked, selected_file };
 }
 
-void DrawFsTree(std::string directoryPath)
-{
+void UpdateEditorContent(TextEditor &editor, AppState &state) {
+    // action
+    std::ifstream t(state.fileToEdit);
+    if (t.good())
+    {
+        std::string str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
+        editor.SetText(str);
+    }
+}
+
+void DrawFsTree(TextEditor &editor, AppState &appState) {
+    std::string directoryPath = appState.folderToView;
 	if (ImGui::CollapsingHeader("Folder", ImGuiTreeNodeFlags_DefaultOpen))
 	{	
 		uint32_t count = 0;
@@ -241,26 +262,19 @@ void DrawFsTree(std::string directoryPath)
 
 		if (std::get<0>(clickState))
 		{
-            std::cout<<"selected file: " << std::get<2>(clickState) <<std::endl;
+            std::string selected_file = std::get<2>(clickState);
+            std::cout<<"selected_file: " << selected_file << std::endl;
+            appState.fileToEdit = selected_file;
+            UpdateEditorContent(editor, appState);
 			// Update selection state
 			// (process outside of tree loop to avoid visual inconsistencies during the clicking frame)
 			if (ImGui::GetIO().KeyCtrl)
 				selection_mask ^= BIT(std::get<1>(clickState));          // CTRL+click to toggle
 			else //if (!(selection_mask & (1 << clickState.second))) // Depending on selection behavior you want, may want to preserve selection when clicking on item that is part of the selection
 				selection_mask = BIT(std::get<1>(clickState));           // Click to single-select
-            
 		}
 	}
 }
-
-struct AppState {
-    std::string fileToEdit;
-    std::string folderToView;
-
-    AppState(): fileToEdit(""), folderToView("") {
-
-    }
-};
 
 int main(int argc, const char *argv[]) {
 
@@ -505,13 +519,7 @@ int main(int argc, const char *argv[]) {
             if (ImGuiFileDialog::Instance()->IsOk())
             {
                 state.fileToEdit = ImGuiFileDialog::Instance()->GetFilePathName();
-                // action
-                std::ifstream t(state.fileToEdit);
-                if (t.good())
-                {
-                    std::string str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
-                    editor.SetText(str);
-                }
+                UpdateEditorContent(editor, state);
             }
             // close
             ImGuiFileDialog::Instance()->Close();
@@ -531,15 +539,17 @@ int main(int argc, const char *argv[]) {
 
         float h = viewportSize.y;
         auto thickness = 8.0f;
-        float sz1 = (viewportSize.x - 2 * thickness)/3;
-        float sz2 = sz1;
-        DrawSplitter(false, thickness, &sz1, &sz2, 8, 8);
+        float sz1 = (viewportSize.x - 2 * thickness)/5;
 
         // display fs tree
         ImGui::BeginChild("FsTree", ImVec2(sz1, h), true);
-        DrawFsTree(state.folderToView);
+        DrawFsTree(editor, state);
         ImGui::EndChild();
         ImGui::SameLine();
+
+        sz1 = 2 * (viewportSize.x - 2 * thickness)/5;
+        float sz2 = sz1;
+        DrawSplitter(false, thickness, &sz1, &sz2, 8, 8);
 
         // display editor
         ImGui::BeginChild("Editor", ImVec2(sz1, h), true);

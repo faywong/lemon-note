@@ -1,4 +1,4 @@
-# imgui_md
+# lemon-note
 Markdown renderer for [Dear ImGui](https://github.com/ocornut/imgui) using [MD4C](https://github.com/mity/md4c) parser.
 
 C++11 or above
@@ -154,10 +154,16 @@ Border | **is not** | visible
 
 ## Screenshot
 
-![](https://imgur.com/mCfjaQB.png)
+![](https://imgur.com/LnWY6TY.png)
 
 
 ## Credits
 [Martin Mitáš for MD4C](https://github.com/mity/md4c)
 
+[BalazsJako/ImGuiColorTextEdit](https://github.com/BalazsJako/ImGuiColorTextEdit)
+
+[aiekick/ImGuiFileDialog](https://github.com/aiekick/ImGuiFileDialog)
+
 [Omar Cornut for Dear ImGui](https://github.com/ocornut/imgui) 
+
+
