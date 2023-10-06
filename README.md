@@ -24,6 +24,36 @@ Current tables limitations:
   * Width of the columns are defined by header
   * Cells are always left aligned
 
+
+## markdown example
+
+### List
+
+1. First ordered list item
+2. Another item
+   * Unordered sub-list 1.
+   * Unordered sub-list 2.
+1. Actual numbers don't matter, just that it's a number
+   1. **Ordered** sub-list 1
+   2. **Ordered** sub-list 2
+4. And another item with minuses.
+   - __sub-list with underline__
+   - sub-list with escapes: \[looks like\]\(a link\)
+5. ~~Item with pluses and strikethrough~~.
+   + sub-list 1
+   + sub-list 2
+   + [Just a link](https://github.com/mekhontsev/imgui_md).
+      * Item with [link1](#link1)
+      * Item with bold [**link2**](#link1)
+
+### table
+
+Name &nbsp; &nbsp; &nbsp; &nbsp; | Multiline &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<br>header  | [Link&nbsp;](#link1)
+:------|:-------------------|:--
+Value-One | Long <br>explanation <br>with \<br\>\'s|1
+~~Value-Two~~ | __text auto wrapped__\: long explanation here |25 37 43 56 78 90
+**etc** | [~~Some **link**~~](https://github.com/mekhontsev/imgui_md)|3
+
 ## Usage
 
 Add imgui_md.h imgui_md.cpp md4c.h md4c.c to your project and use the following code:

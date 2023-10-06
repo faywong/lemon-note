@@ -453,16 +453,16 @@ int main(int argc, const char *argv[]) {
 		{
 			if (ImGui::BeginMenu("File"))
 			{
-				if (ImGui::MenuItem("Save"))
+				if (ImGui::MenuItem("Save", "CTRL+S"))
 				{
 					auto textToSave = editor.GetText();
                     std::ofstream out(state.fileToEdit);
                     out << textToSave;
                     out.close();
-				} else if (ImGui::MenuItem("Open File")) {
-                    ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".md,.cpp,.h,.hpp", 
+				} else if (ImGui::MenuItem("Open File", "CTRL+O")) {
+                    ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".md", 
                             ".");
-				} else if (ImGui::MenuItem("Open Folder")) {
+				} else if (ImGui::MenuItem("Open Folder", "CTRL+K CTRL+O")) {
                     ImGuiFileDialog::Instance()->OpenDialog("ChooseDirDlgKey", "Choose a Directory", nullptr, ".");
 				}
 				if (ImGui::MenuItem("Quit", "Alt-F4"))
@@ -513,6 +513,22 @@ int main(int argc, const char *argv[]) {
 			ImGui::EndMenuBar();
 		}
 
+        if (ImGui::IsKeyPressed(ImGuiKey_P)
+                        && ImGui::IsKeyPressed(ImGuiKey_ModCtrl)) {
+            bool open = true;
+            if (ImGui::BeginPopupModal("Modal window", &open))
+            {
+                ImGui::Text("Hello dsjfhds fhjs hfj dshfj hds");
+                if (ImGui::Button("Close"))
+                    ImGui::CloseCurrentPopup();
+                ImGui::EndPopup();
+            }
+        } else if ((ImGui::IsKeyPressed(ImGuiKey_O)
+                        && ImGui::IsKeyPressed(ImGuiKey_ModCtrl))) {
+            ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".md", 
+                    ".");
+        }
+ 
         // display file dialog
         if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) 
         {
