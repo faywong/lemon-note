@@ -462,7 +462,7 @@ int main(int argc, const char *argv[]) {
 				} else if (ImGui::MenuItem("Open File", "CTRL+O")) {
                     ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".md", 
                             ".");
-				} else if (ImGui::MenuItem("Open Folder", "CTRL+K CTRL+O")) {
+				} else if (ImGui::MenuItem("Open Folder", "CTRL+SHIFT+O")) {
                     ImGuiFileDialog::Instance()->OpenDialog("ChooseDirDlgKey", "Choose a Directory", nullptr, ".");
 				}
 				if (ImGui::MenuItem("Quit", "Alt-F4"))
@@ -515,16 +515,19 @@ int main(int argc, const char *argv[]) {
 
         if (ImGui::IsKeyPressed(ImGuiKey_P)
                         && ImGui::IsKeyPressed(ImGuiKey_ModCtrl)) {
-            bool open = true;
-            if (ImGui::BeginPopupModal("Modal window", &open))
-            {
+            bool isCtrlP = true;
+            if (ImGui::BeginPopupModal("CtrlP", &isCtrlP)) {
                 ImGui::Text("Hello dsjfhds fhjs hfj dshfj hds");
                 if (ImGui::Button("Close"))
                     ImGui::CloseCurrentPopup();
                 ImGui::EndPopup();
             }
-        } else if ((ImGui::IsKeyPressed(ImGuiKey_O)
-                        && ImGui::IsKeyPressed(ImGuiKey_ModCtrl))) {
+        } else if (ImGui::IsKeyPressed(ImGuiKey_ModShift)
+                        && ImGui::IsKeyPressed(ImGuiKey_O)
+                        && ImGui::IsKeyPressed(ImGuiKey_ModCtrl)) {
+            ImGuiFileDialog::Instance()->OpenDialog("ChooseDirDlgKey", "Choose a Directory", nullptr, ".");
+        } else if (ImGui::IsKeyPressed(ImGuiKey_O)
+                        && ImGui::IsKeyPressed(ImGuiKey_ModCtrl)) {
             ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".md", 
                     ".");
         }

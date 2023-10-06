@@ -184,7 +184,7 @@ Border | **is not** | visible
 
 ## Screenshot
 
-![](https://imgur.com/LnWY6TY.png)
+![](https://imgur.com/gYMqNTa.png)
 
 
 ## Credits
@@ -195,5 +195,6 @@ Border | **is not** | visible
 [aiekick/ImGuiFileDialog](https://github.com/aiekick/ImGuiFileDialog)
 
 [Omar Cornut for Dear ImGui](https://github.com/ocornut/imgui) 
+
 
 
