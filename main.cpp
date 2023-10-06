@@ -197,7 +197,7 @@ std::tuple<bool, uint32_t, std::string> DirectoryTreeViewRecursive(const fs::pat
 		if (entryIsFile)
 			node_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
-		bool node_open = ImGui::TreeNodeEx((void*)(intptr_t)(*count), node_flags, name.c_str());
+		bool node_open = ImGui::TreeNodeEx(std::to_string(*count).c_str(), node_flags, "%s", name.c_str());
 
 		if (ImGui::IsItemClicked())
 		{

@@ -75,9 +75,9 @@ endif()
 CPMAddPackage(
         NAME md4c
         GITHUB_REPOSITORY mity/md4c
-        GIT_TAG c3340b480e5232711858108be07460a9836c8ab5
+        GIT_TAG release-0.4.8
         OPTIONS
-#         "MD4C_USE_UTF8"
+        "MD4C_USE_UTF8"
 )
 
 if (md4c_ADDED)
